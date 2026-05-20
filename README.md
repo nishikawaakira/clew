@@ -21,7 +21,7 @@ The name *clew* is the Old English word for "ball of thread" — the literal ety
 
 ## Requirements
 
-- Go 1.21+ (developed on 1.26)
+- Go 1.24+ (developed on 1.26; CI also tests against 1.24 to keep this floor honest). The minimum is pinned by transitive dependencies — `go mod tidy` will raise it if any dependency upgrade requires a newer toolchain.
 - CGO enabled (`CGO_ENABLED=1`). `marcboeker/go-duckdb` links a C library, so a C compiler (`cc` / `clang`) is required on macOS / Linux.
 - AWS CLI (only for downloading snapshots)
 - An AWS account with AWS Config enabled (only for downloading snapshots)

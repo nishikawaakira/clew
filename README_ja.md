@@ -15,7 +15,7 @@
 
 ## 必要要件
 
-- Go 1.21+ (実装は 1.26 で動作確認)
+- Go 1.24+ (実装は 1.26 で動作確認、CI でも 1.24 を回して下限を担保)。最低バージョンは推移的依存に引っ張られて決まるため、依存更新時に `go mod tidy` が上げる可能性があります。
 - CGO 有効 (`CGO_ENABLED=1`)。`marcboeker/go-duckdb` は CGO に依存するため macOS/Linux ともに C コンパイラ (`cc` / `clang`) が必要です。
 - AWS CLI (snapshot を取得する場合のみ)
 - AWS Config が有効化されたアカウント (snapshot を取得する場合のみ)

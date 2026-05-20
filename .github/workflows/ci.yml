@@ -14,12 +14,19 @@ concurrency:
 
 jobs:
   test:
-    name: build + test (${{ matrix.os }})
+    name: build + test (${{ matrix.os }}, Go ${{ matrix.go }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        # Default rows: latest stable Go on both supported OSes.
         os: [ubuntu-latest, macos-latest]
+        go: ['stable']
+        # Extra row: pin the floor declared in go.mod so any newer-language-
+        # feature creeping in is caught here rather than at install time.
+        include:
+          - os: ubuntu-latest
+            go: '1.24'
 
     env:
       CGO_ENABLED: "1"
@@ -31,7 +38,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: stable
+          go-version: ${{ matrix.go }}
           cache: true
 
       - name: Show Go version
