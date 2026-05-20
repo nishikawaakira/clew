@@ -79,31 +79,39 @@ const SHOW_EDGE_LABELS_DEFAULT = {{.WithEdgeLabels}};
     },
     layout: {
       improvedLayout: true,
-      hierarchical: {
+      // Hierarchical is opt-in via the toolbar — by default we use a
+      // force-directed layout because it spreads nodes across both axes
+      // and is much friendlier when many resources share the same rank.
+      hierarchical: { enabled: false },
+    },
+    physics: {
+      enabled: true,
+      solver: 'forceAtlas2Based',
+      forceAtlas2Based: {
+        gravitationalConstant: -60,
+        centralGravity: 0.01,
+        springLength: 90,
+        springConstant: 0.08,
+        damping: 0.5,
+        avoidOverlap: 0.6,
+      },
+      stabilization: {
         enabled: true,
-        direction: 'UD',
-        sortMethod: 'directed',
-        nodeSpacing: 110,
-        levelSeparation: 110,
-        treeSpacing: 140,
-        blockShifting: true,
-        edgeMinimization: true,
-        parentCentralization: true,
+        iterations: 250,
+        updateInterval: 25,
+        fit: true,
       },
     },
-    physics: { enabled: false },
     interaction: { hover: true, navigationButtons: true, keyboard: true, tooltipDelay: 120 },
   };
 
   const network = new vis.Network(container, { nodes, edges }, baseOptions);
 
-  // Fit the graph to the visible canvas. Called on load, on window resize,
-  // and after every layout toggle so the user always sees the whole topology
-  // by default (they can still zoom in via mouse wheel / pinch / nav buttons).
+  // Fit the graph to the visible canvas. Physics layout fits automatically
+  // via stabilization.fit, but we also re-fit on resize and after layout
+  // toggles so the whole topology stays in view.
   const fitAll = () => network.fit({ animation: false });
-  // The first afterDrawing fires synchronously once layout is computed.
-  network.once('afterDrawing', fitAll);
-  // Re-fit whenever the viewport size changes.
+  network.once('stabilizationIterationsDone', fitAll);
   let resizeTimer;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
