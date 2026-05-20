@@ -1,0 +1,47 @@
+# Dependabot keeps Go modules and GitHub Actions dependencies up to date.
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+version: 2
+updates:
+  # Go module dependencies (direct + transitive).
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - go
+    commit-message:
+      prefix: deps
+      include: scope
+    # Group routine patch/minor bumps into a single PR per ecosystem so the
+    # review queue doesn't grow unbounded. Majors stay as individual PRs.
+    groups:
+      go-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # GitHub Actions (workflow files under .github/workflows).
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: ci(deps)
+      include: scope
+    groups:
+      actions-minor-and-patch:
+        update-types:
+          - minor
+          - patch
