@@ -20,7 +20,8 @@
   #legend { top: 12px; left: 12px; max-width: 260px; }
   #toolbar { top: 12px; right: 12px; }
   #details { bottom: 12px; left: 12px; max-width: 360px; max-height: 40vh; overflow: auto; display: none; }
-  #details pre { white-space: pre-wrap; word-break: break-all; margin: 6px 0 0; font-size: 11px; background: #f5f5f5; padding: 6px 8px; border-radius: 4px; }
+  #details .meta { margin: 3px 0; font-size: 12px; word-break: break-all; }
+  #details .meta strong { display: inline-block; min-width: 80px; color: #666; font-weight: 600; }
 
   .legend-title, .toolbar-title { font-weight: 600; margin-bottom: 6px; }
   .legend-item { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
@@ -29,8 +30,9 @@
   .muted { color: #666; }
   .toolbar-row { margin: 4px 0; }
   .toolbar-row label { cursor: pointer; user-select: none; }
-  button.mini { font-size: 11px; padding: 2px 6px; border: 1px solid #bbb; background: white; border-radius: 4px; cursor: pointer; }
+  button.mini { font-size: 11px; padding: 3px 8px; border: 1px solid #bbb; background: white; border-radius: 4px; cursor: pointer; margin-right: 4px; }
   button.mini:hover { background: #f0f0f0; }
+  select.mini { font-size: 11px; padding: 2px 4px; border: 1px solid #bbb; border-radius: 4px; background: white; }
 </style>
 </head>
 <body>
@@ -44,9 +46,21 @@
 
 <div id="toolbar" class="panel">
   <div class="toolbar-title">View</div>
-  <div class="toolbar-row"><label><input type="checkbox" id="hierarchical" checked> Hierarchical layout</label></div>
+  <div class="toolbar-row">
+    <label>Direction:
+      <select id="dir" class="mini">
+        <option value="TB" selected>top → bottom</option>
+        <option value="LR">left → right</option>
+        <option value="BT">bottom → top</option>
+        <option value="RL">right → left</option>
+      </select>
+    </label>
+  </div>
   <div class="toolbar-row"><label><input type="checkbox" id="edgeLabels"> Show edge labels</label></div>
-  <div class="toolbar-row"><button class="mini" id="fit">Fit to screen</button></div>
+  <div class="toolbar-row">
+    <button class="mini" id="fit">Fit</button>
+    <button class="mini" id="relayout">Re-layout</button>
+  </div>
 </div>
 
 <div id="details" class="panel">
@@ -54,126 +68,242 @@
   <div id="details-body"></div>
 </div>
 
-<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+<script src="https://unpkg.com/cytoscape@3.30.4/dist/cytoscape.min.js"></script>
+<script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+<script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
 <script>
 const DATA = {{.DataJSON}};
 const SHOW_EDGE_LABELS_DEFAULT = {{.WithEdgeLabels}};
 
 (function () {
-  const nodes = new vis.DataSet(DATA.nodes);
-  const edges = new vis.DataSet(DATA.edges.map(e => ({...e, label: SHOW_EDGE_LABELS_DEFAULT ? e.label : ''})));
-  const container = document.getElementById('graph');
+  if (typeof cytoscapeDagre !== 'undefined') {
+    cytoscape.use(cytoscapeDagre);
+  }
 
-  const baseOptions = {
-    nodes: {
-      borderWidth: 1,
-      font: { size: 12, multi: false, face: 'Helvetica' },
-      margin: 8,
-      shadow: false,
-    },
-    edges: {
-      arrows: { to: { enabled: true, scaleFactor: 0.6 } },
-      smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.35 },
-      color: { color: '#888', highlight: '#222' },
-      font: { size: 10, color: '#444', background: 'rgba(255,255,255,0.85)', strokeWidth: 0, align: 'middle' },
-    },
-    layout: {
-      improvedLayout: true,
-      // Hierarchical is opt-in via the toolbar — by default we use a
-      // force-directed layout because it spreads nodes across both axes
-      // and is much friendlier when many resources share the same rank.
-      hierarchical: { enabled: false },
-    },
-    physics: {
-      enabled: true,
-      solver: 'forceAtlas2Based',
-      forceAtlas2Based: {
-        gravitationalConstant: -60,
-        centralGravity: 0.01,
-        springLength: 90,
-        springConstant: 0.08,
-        damping: 0.5,
-        avoidOverlap: 0.6,
-      },
-      stabilization: {
-        enabled: true,
-        iterations: 250,
-        updateInterval: 25,
-        fit: true,
-      },
-    },
-    interaction: { hover: true, navigationButtons: true, keyboard: true, tooltipDelay: 120 },
+  // Per-resource-type fill/border colors. Compound (parent) nodes use the
+  // same hue with a translucent fill so children remain visible.
+  const palette = {
+    'rt-aws-ec2-vpc':                              { bg: '#cfe2f3', border: '#3b82f6' },
+    'rt-aws-ec2-subnet':                           { bg: '#d9ead3', border: '#16a34a' },
+    'rt-aws-ec2-routetable':                       { bg: '#fff2cc', border: '#ca8a04' },
+    'rt-aws-ec2-internetgateway':                  { bg: '#b6d7a8', border: '#22c55e' },
+    'rt-aws-ec2-natgateway':                       { bg: '#a2c4c9', border: '#0891b2' },
+    'rt-aws-ec2-securitygroup':                    { bg: '#f4cccc', border: '#dc2626' },
+    'rt-aws-ec2-networkinterface':                 { bg: '#ead1dc', border: '#a855f7' },
+    'rt-aws-ec2-instance':                         { bg: '#ffe599', border: '#eab308' },
+    'rt-aws-elasticloadbalancingv2-loadbalancer':  { bg: '#ea9999', border: '#ef4444' },
+    'rt-aws-elasticloadbalancingv2-targetgroup':   { bg: '#f9cb9c', border: '#f97316' },
+    'rt-aws-rds-dbinstance':                       { bg: '#9fc5e8', border: '#0ea5e9' },
+    'rt-aws-lambda-function':                      { bg: '#d5a6bd', border: '#ec4899' },
+  };
+  const shapeFor = {
+    'rt-aws-ec2-vpc':                              'round-rectangle',
+    'rt-aws-ec2-subnet':                           'round-rectangle',
+    'rt-aws-ec2-routetable':                       'tag',
+    'rt-aws-ec2-internetgateway':                  'diamond',
+    'rt-aws-ec2-natgateway':                       'diamond',
+    'rt-aws-ec2-securitygroup':                    'hexagon',
+    'rt-aws-ec2-networkinterface':                 'ellipse',
+    'rt-aws-ec2-instance':                         'round-rectangle',
+    'rt-aws-elasticloadbalancingv2-loadbalancer':  'ellipse',
+    'rt-aws-elasticloadbalancingv2-targetgroup':   'ellipse',
+    'rt-aws-rds-dbinstance':                       'barrel',
+    'rt-aws-lambda-function':                      'round-hexagon',
   };
 
-  const network = new vis.Network(container, { nodes, edges }, baseOptions);
+  function styleForClass(cls) {
+    const p = palette[cls] || { bg: '#eeeeee', border: '#888' };
+    const shape = shapeFor[cls] || 'round-rectangle';
+    return [
+      { selector: 'node.' + cls, style: {
+        'background-color': p.bg,
+        'border-color': p.border,
+        'shape': shape,
+      }},
+      // Compound (parent) variant: same hue, lighter fill, dashed outline.
+      { selector: 'node.' + cls + ':parent', style: {
+        'background-color': p.bg,
+        'background-opacity': 0.35,
+        'border-color': p.border,
+        'border-style': 'dashed',
+      }},
+    ];
+  }
 
-  // Fit the graph to the visible canvas. Physics layout fits automatically
-  // via stabilization.fit, but we also re-fit on resize and after layout
-  // toggles so the whole topology stays in view.
-  const fitAll = () => network.fit({ animation: false });
-  network.once('stabilizationIterationsDone', fitAll);
+  const typeClasses = Object.keys(palette);
+  const perTypeStyles = typeClasses.flatMap(styleForClass);
+
+  const baseStyles = [
+    { selector: 'node', style: {
+      'label': 'data(label)',
+      'text-wrap': 'wrap',
+      'text-max-width': '140px',
+      'text-valign': 'center',
+      'text-halign': 'center',
+      'font-size': 11,
+      'font-family': 'Helvetica, Arial, sans-serif',
+      'background-color': '#eeeeee',
+      'border-width': 1.2,
+      'border-color': '#888',
+      'shape': 'round-rectangle',
+      'width': 'label',
+      'height': 'label',
+      'padding': '8px',
+      'color': '#222',
+    }},
+    // Anything that's a compound node sets its label at the top of the box
+    // so it can be read above its children.
+    { selector: ':parent', style: {
+      'text-valign': 'top',
+      'text-halign': 'center',
+      'font-weight': 'bold',
+      'font-size': 13,
+      'padding': '18px',
+      'background-opacity': 0.25,
+      'border-style': 'dashed',
+      'border-width': 1.5,
+    }},
+    { selector: 'node.placeholder', style: {
+      'background-color': '#f5f5f5',
+      'border-style': 'dashed',
+      'border-color': '#bbb',
+      'color': '#777',
+    }},
+    { selector: 'edge', style: {
+      'curve-style': 'bezier',
+      'target-arrow-shape': 'triangle',
+      'target-arrow-color': '#888',
+      'line-color': '#888',
+      'width': 1.2,
+      'arrow-scale': 0.9,
+      'font-size': 9,
+      'font-family': 'Helvetica, Arial, sans-serif',
+      'color': '#444',
+      'text-background-color': '#ffffff',
+      'text-background-opacity': 0.85,
+      'text-background-padding': '2px',
+      'text-rotation': 'autorotate',
+    }},
+    { selector: 'edge.with-label', style: {
+      'label': 'data(label)',
+    }},
+    { selector: 'node:selected', style: {
+      'border-width': 3,
+      'border-color': '#1e40af',
+    }},
+    { selector: 'edge:selected', style: {
+      'line-color': '#1e40af',
+      'target-arrow-color': '#1e40af',
+      'width': 2,
+    }},
+  ];
+
+  let direction = 'TB';
+
+  function layoutOptions() {
+    return {
+      name: 'dagre',
+      rankDir: direction,
+      nodeSep: 28,
+      rankSep: 70,
+      edgeSep: 12,
+      ranker: 'tight-tree',
+      animate: false,
+      padding: 30,
+      fit: true,
+    };
+  }
+
+  const cy = cytoscape({
+    container: document.getElementById('graph'),
+    elements: {
+      nodes: DATA.nodes,
+      edges: DATA.edges,
+    },
+    style: baseStyles.concat(perTypeStyles),
+    layout: layoutOptions(),
+    wheelSensitivity: 0.2,
+    minZoom: 0.1,
+    maxZoom: 4,
+    boxSelectionEnabled: false,
+  });
+
+  // Edge label toggle: drive via the `with-label` class so the stylesheet
+  // shows / hides labels uniformly.
+  function applyEdgeLabels(enabled) {
+    if (enabled) {
+      cy.edges().addClass('with-label');
+    } else {
+      cy.edges().removeClass('with-label');
+    }
+  }
+  applyEdgeLabels(SHOW_EDGE_LABELS_DEFAULT);
+  document.getElementById('edgeLabels').checked = SHOW_EDGE_LABELS_DEFAULT;
+  document.getElementById('edgeLabels').addEventListener('change', (e) => {
+    applyEdgeLabels(e.target.checked);
+  });
+
+  // Direction toggle: re-run dagre layout.
+  document.getElementById('dir').addEventListener('change', (e) => {
+    direction = e.target.value;
+    cy.layout(layoutOptions()).run();
+  });
+
+  document.getElementById('fit').addEventListener('click', () => cy.fit(undefined, 30));
+  document.getElementById('relayout').addEventListener('click', () => cy.layout(layoutOptions()).run());
+
+  // Re-fit on viewport resize.
   let resizeTimer;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(fitAll, 100);
+    resizeTimer = setTimeout(() => cy.fit(undefined, 30), 100);
   });
 
-  // Legend — derive from the resource types actually present.
+  // Legend — derived from the resource types actually present in the payload.
   const seen = new Map();
   DATA.nodes.forEach(n => {
-    if (!seen.has(n.resourceType)) {
-      seen.set(n.resourceType, n.color && n.color.background ? n.color.background : '#eee');
+    const cls = n.classes ? n.classes.split(/\s+/)[0] : '';
+    if (cls && !seen.has(n.data.resourceType)) {
+      seen.set(n.data.resourceType, (palette[cls] || { bg: '#eeeeee' }).bg);
     }
   });
   const legendEl = document.getElementById('legend-items');
   Array.from(seen.entries()).sort().forEach(([type, color]) => {
     const row = document.createElement('div');
     row.className = 'legend-item';
-    row.innerHTML = `<span class="legend-swatch" style="background:${color}"></span>${type}`;
+    const swatch = document.createElement('span');
+    swatch.className = 'legend-swatch';
+    swatch.style.background = color;
+    row.appendChild(swatch);
+    row.appendChild(document.createTextNode(type));
     legendEl.appendChild(row);
   });
 
-  // Toolbar wiring.
-  document.getElementById('hierarchical').addEventListener('change', (e) => {
-    network.setOptions({
-      layout: { hierarchical: { enabled: e.target.checked, direction: 'UD', sortMethod: 'directed' } },
-      physics: { enabled: !e.target.checked },
-    });
-    if (e.target.checked) {
-      // Hierarchical mode: layout is synchronous, re-fit on the next frame.
-      requestAnimationFrame(fitAll);
-    } else {
-      // Physics mode: wait for stabilization, then fit.
-      network.once('stabilizationIterationsDone', fitAll);
-    }
-  });
-
-  document.getElementById('edgeLabels').checked = SHOW_EDGE_LABELS_DEFAULT;
-  document.getElementById('edgeLabels').addEventListener('change', (e) => {
-    edges.update(DATA.edges.map(orig => ({ id: orig.id, label: e.target.checked ? orig.label : '' })));
-  });
-
-  document.getElementById('fit').addEventListener('click', () => network.fit({ animation: { duration: 250 } }));
-
-  // Click → show details panel.
+  // Details panel on tap.
   const detailsEl = document.getElementById('details');
   const detailsBody = document.getElementById('details-body');
-  network.on('selectNode', (params) => {
-    const nodeId = params.nodes[0];
-    const n = nodes.get(nodeId);
-    if (!n) return;
-    detailsEl.style.display = 'block';
+  cy.on('tap', 'node', (evt) => {
+    const n = evt.target;
+    const d = n.data();
     const meta = [
-      ['type', n.resourceType],
-      ['resource id', n.resourceId],
-      ['account', n.accountId],
-      ['region', n.awsRegion],
-      ['arn', n.arn || '(none)'],
-      ['placeholder', n.placeholder ? 'yes' : 'no'],
+      ['type', d.resourceType],
+      ['resource id', d.resourceId],
+      ['account', d.accountId],
+      ['region', d.awsRegion],
+      ['arn', d.arn || '(none)'],
+      ['placeholder', d.placeholder ? 'yes' : 'no'],
     ];
-    detailsBody.innerHTML = meta.map(([k, v]) => `<div><strong>${k}:</strong> ${String(v).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</div>`).join('');
+    detailsBody.innerHTML = meta.map(([k, v]) =>
+      `<div class="meta"><strong>${k}</strong> ${String(v).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</div>`
+    ).join('');
+    detailsEl.style.display = 'block';
   });
-  network.on('deselectNode', () => { detailsEl.style.display = 'none'; });
+  cy.on('tap', (evt) => {
+    if (evt.target === cy) {
+      detailsEl.style.display = 'none';
+      cy.elements().unselect();
+    }
+  });
 })();
 </script>
 </body>

@@ -151,13 +151,13 @@ aws-config-graph render --db config.duckdb --view vpc --format dot --output vpc.
 
 | 形式 | 推奨用途 | 特徴 |
 |---|---|---|
-| `html` | 自分でグラフを眺めて理解したい | ズーム / パン / ノードクリックで詳細表示 / 階層 ↔ 物理レイアウト切替。`vis-network` を CDN ロードするのでブラウザ閲覧にネット接続が必要 |
+| `html` | 自分でグラフを眺めて理解したい | **VPC が外箱、Subnet が内箱、その中にインスタンス**(compound nodes)というアーキテクチャ図風の配置。`dagre` でレイヤ整列、ズーム / パン / ノードクリックで詳細表示 / レイアウト方向 (TB/LR/BT/RL) 切替。Cytoscape.js + cytoscape-dagre を CDN ロードするのでブラウザ閲覧にネット接続が必要 |
 | `svg` | ドキュメントに静的に貼りたい | ベクター。GitHub / ブラウザで開ける |
 | `png` / `jpg` | Slack / Notion / スライド | ラスタ。サイズ固定 |
 | `mermaid` | Markdown 内に直接埋め込みたい | GitHub README などはそのまま図として描画 |
 | `dot` | Graphviz の別ツール (gephi 等) で再加工 | テキスト |
 
-画像系 (`svg` / `png` / `jpg` / `dot`) は `goccy/go-graphviz` 経由の WASM 同梱 Graphviz でレンダリングします。**外部の `graphviz` インストールは不要** です。HTML は単一ファイルで完結し、`<script src="https://unpkg.com/vis-network/...">` で vis-network を読み込みます (オフラインで開きたい場合は将来オプションを追加予定)。
+画像系 (`svg` / `png` / `jpg` / `dot`) は `goccy/go-graphviz` 経由の WASM 同梱 Graphviz でレンダリングします。**外部の `graphviz` インストールは不要** です。HTML は単一ファイルで完結し、ブラウザで開いたときに Cytoscape.js / dagre / cytoscape-dagre を CDN から読み込みます (オフラインで開きたい場合は将来オプションを追加予定)。
 
 Mermaid 出力例:
 
@@ -221,7 +221,7 @@ VPC ビューで参照する resource type:
 
 - `view` は `vpc` のみ
 - `format` は `html` / `mermaid` / `dot` / `svg` / `png` / `jpg` / (query のみ) `text`
-- HTML 出力は vis-network を CDN から読み込むので、HTML ファイル自体は単一で完結するがブラウザでの閲覧時にネット接続が必要
+- HTML 出力は Cytoscape.js + cytoscape-dagre を CDN から読み込むので、HTML ファイル自体は単一で完結するがブラウザでの閲覧時にネット接続が必要
 - configuration からのエッジ抽出は仕様書に列挙された範囲のみ (SG ルール内 SG 参照、Lambda VPC config 等)
 - アカウント / リージョンを跨ぐエッジは relationship に明示されていないため作成されません
 - 大規模 snapshot 向けの並列化や appender API は未対応 (動作はしますが速度は素朴な prepared statement 経由です)
