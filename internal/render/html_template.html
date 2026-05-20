@@ -78,13 +78,17 @@ const SHOW_EDGE_LABELS_DEFAULT = {{.WithEdgeLabels}};
       font: { size: 10, color: '#444', background: 'rgba(255,255,255,0.85)', strokeWidth: 0, align: 'middle' },
     },
     layout: {
+      improvedLayout: true,
       hierarchical: {
         enabled: true,
         direction: 'UD',
         sortMethod: 'directed',
-        nodeSpacing: 160,
-        levelSeparation: 120,
-        treeSpacing: 220,
+        nodeSpacing: 110,
+        levelSeparation: 110,
+        treeSpacing: 140,
+        blockShifting: true,
+        edgeMinimization: true,
+        parentCentralization: true,
       },
     },
     physics: { enabled: false },
@@ -92,6 +96,19 @@ const SHOW_EDGE_LABELS_DEFAULT = {{.WithEdgeLabels}};
   };
 
   const network = new vis.Network(container, { nodes, edges }, baseOptions);
+
+  // Fit the graph to the visible canvas. Called on load, on window resize,
+  // and after every layout toggle so the user always sees the whole topology
+  // by default (they can still zoom in via mouse wheel / pinch / nav buttons).
+  const fitAll = () => network.fit({ animation: false });
+  // The first afterDrawing fires synchronously once layout is computed.
+  network.once('afterDrawing', fitAll);
+  // Re-fit whenever the viewport size changes.
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(fitAll, 100);
+  });
 
   // Legend — derive from the resource types actually present.
   const seen = new Map();
@@ -114,6 +131,13 @@ const SHOW_EDGE_LABELS_DEFAULT = {{.WithEdgeLabels}};
       layout: { hierarchical: { enabled: e.target.checked, direction: 'UD', sortMethod: 'directed' } },
       physics: { enabled: !e.target.checked },
     });
+    if (e.target.checked) {
+      // Hierarchical mode: layout is synchronous, re-fit on the next frame.
+      requestAnimationFrame(fitAll);
+    } else {
+      // Physics mode: wait for stabilization, then fit.
+      network.once('stabilizationIterationsDone', fitAll);
+    }
   });
 
   document.getElementById('edgeLabels').checked = SHOW_EDGE_LABELS_DEFAULT;
