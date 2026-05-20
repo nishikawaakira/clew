@@ -1,0 +1,21 @@
+# Build artifacts
+/aws-config-graph
+*.exe
+*.test
+*.out
+
+# Local DuckDB files produced by `aws-config-graph import`
+*.duckdb
+*.duckdb.wal
+*.duckdb.tmp
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Vendoring (we rely on the module cache)
+/vendor/
+
+# Local Claude Code settings
+.claude/

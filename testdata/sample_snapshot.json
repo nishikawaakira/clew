@@ -1,0 +1,91 @@
+{
+  "fileVersion": "1.0",
+  "configSnapshotId": "test-snapshot-1",
+  "configurationItems": [
+    {
+      "accountId": "123456789012",
+      "awsRegion": "ap-northeast-1",
+      "resourceType": "AWS::EC2::VPC",
+      "resourceId": "vpc-aaa",
+      "resourceName": "main-vpc",
+      "arn": "arn:aws:ec2:ap-northeast-1:123456789012:vpc/vpc-aaa",
+      "configurationItemCaptureTime": "2026-05-20T00:00:00.000Z",
+      "configuration": {
+        "cidrBlock": "10.0.0.0/16",
+        "isDefault": false
+      },
+      "relationships": [],
+      "tags": {"Name": "main-vpc"}
+    },
+    {
+      "accountId": "123456789012",
+      "awsRegion": "ap-northeast-1",
+      "resourceType": "AWS::EC2::Subnet",
+      "resourceId": "subnet-pub",
+      "configurationItemCaptureTime": "2026-05-20T00:00:00.000Z",
+      "configuration": {
+        "vpcId": "vpc-aaa",
+        "cidrBlock": "10.0.1.0/24"
+      },
+      "relationships": [
+        {"resourceType": "AWS::EC2::VPC", "resourceId": "vpc-aaa", "relationshipName": "Is contained in Vpc"}
+      ]
+    },
+    {
+      "accountId": "123456789012",
+      "awsRegion": "ap-northeast-1",
+      "resourceType": "AWS::EC2::RouteTable",
+      "resourceId": "rtb-pub",
+      "configurationItemCaptureTime": "2026-05-20T00:00:00.000Z",
+      "configuration": {
+        "vpcId": "vpc-aaa",
+        "routes": [
+          {"destinationCidrBlock": "0.0.0.0/0", "gatewayId": "igw-zzz"},
+          {"destinationCidrBlock": "10.0.0.0/16", "gatewayId": "local"}
+        ]
+      },
+      "relationships": []
+    },
+    {
+      "accountId": "123456789012",
+      "awsRegion": "ap-northeast-1",
+      "resourceType": "AWS::EC2::InternetGateway",
+      "resourceId": "igw-zzz",
+      "configurationItemCaptureTime": "2026-05-20T00:00:00.000Z",
+      "configuration": {
+        "attachments": [{"vpcId": "vpc-aaa", "state": "available"}]
+      },
+      "relationships": []
+    },
+    {
+      "accountId": "123456789012",
+      "awsRegion": "ap-northeast-1",
+      "resourceType": "AWS::EC2::SecurityGroup",
+      "resourceId": "sg-001",
+      "configurationItemCaptureTime": "2026-05-20T00:00:00.000Z",
+      "configuration": {
+        "vpcId": "vpc-aaa",
+        "ipPermissions": [
+          {"ipProtocol": "tcp", "fromPort": 80, "toPort": 80, "userIdGroupPairs": [{"groupId": "sg-002"}]}
+        ]
+      },
+      "relationships": []
+    },
+    {
+      "accountId": "123456789012",
+      "awsRegion": "ap-northeast-1",
+      "resourceType": "AWS::EC2::Instance",
+      "resourceId": "i-1111",
+      "configurationItemCaptureTime": "2026-05-20T00:00:00.000Z",
+      "configuration": {
+        "vpcId": "vpc-aaa",
+        "subnetId": "subnet-pub",
+        "securityGroups": [{"groupId": "sg-001"}],
+        "networkInterfaces": [{"networkInterfaceId": "eni-1"}]
+      },
+      "relationships": [
+        {"resourceType": "AWS::EC2::Subnet", "resourceId": "subnet-pub", "relationshipName": "Is associated with Subnet"}
+      ]
+    }
+  ]
+}
