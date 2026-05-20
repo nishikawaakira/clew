@@ -56,6 +56,15 @@
       </select>
     </label>
   </div>
+  <div class="toolbar-row">
+    <label>Edge style:
+      <select id="curve" class="mini">
+        <option value="taxi" selected>orthogonal (taxi)</option>
+        <option value="bezier">curved (bezier)</option>
+        <option value="straight">straight</option>
+      </select>
+    </label>
+  </div>
   <div class="toolbar-row"><label><input type="checkbox" id="edgeLabels"> Show edge labels</label></div>
   <div class="toolbar-row">
     <button class="mini" id="fit">Fit</button>
@@ -170,7 +179,11 @@ const SHOW_EDGE_LABELS_DEFAULT = {{.WithEdgeLabels}};
       'color': '#777',
     }},
     { selector: 'edge', style: {
-      'curve-style': 'bezier',
+      'curve-style': 'taxi',
+      'taxi-direction': 'vertical',
+      'taxi-turn': '50%',
+      'taxi-turn-min-distance': 6,
+      'edge-distances': 'node-position',
       'target-arrow-shape': 'triangle',
       'target-arrow-color': '#888',
       'line-color': '#888',
@@ -183,6 +196,12 @@ const SHOW_EDGE_LABELS_DEFAULT = {{.WithEdgeLabels}};
       'text-background-opacity': 0.85,
       'text-background-padding': '2px',
       'text-rotation': 'autorotate',
+    }},
+    { selector: 'edge.curve-bezier', style: {
+      'curve-style': 'bezier',
+    }},
+    { selector: 'edge.curve-straight', style: {
+      'curve-style': 'straight',
     }},
     { selector: 'edge.with-label', style: {
       'label': 'data(label)',
@@ -204,14 +223,33 @@ const SHOW_EDGE_LABELS_DEFAULT = {{.WithEdgeLabels}};
     return {
       name: 'dagre',
       rankDir: direction,
-      nodeSep: 28,
-      rankSep: 70,
-      edgeSep: 12,
+      nodeSep: 32,
+      rankSep: 80,
+      edgeSep: 24,
       ranker: 'tight-tree',
       animate: false,
       padding: 30,
       fit: true,
     };
+  }
+
+  // Edge curve style is driven by a CSS class (.curve-bezier / .curve-straight).
+  // Taxi is the default (no class needed) since the stylesheet rule for `edge`
+  // already sets curve-style: taxi.
+  function applyCurveStyle(value) {
+    cy.edges().removeClass('curve-bezier curve-straight');
+    if (value === 'bezier') cy.edges().addClass('curve-bezier');
+    if (value === 'straight') cy.edges().addClass('curve-straight');
+  }
+
+  // Adapt taxi direction to the current dagre rankDir so orthogonal edges
+  // turn along the axis of layout.
+  function applyTaxiDirection() {
+    const taxiDir = (direction === 'LR' || direction === 'RL') ? 'horizontal' : 'vertical';
+    cy.style()
+      .selector('edge')
+      .style({ 'taxi-direction': taxiDir })
+      .update();
   }
 
   const cy = cytoscape({
@@ -243,14 +281,23 @@ const SHOW_EDGE_LABELS_DEFAULT = {{.WithEdgeLabels}};
     applyEdgeLabels(e.target.checked);
   });
 
-  // Direction toggle: re-run dagre layout.
+  // Direction toggle: re-run dagre layout and re-align taxi direction.
   document.getElementById('dir').addEventListener('change', (e) => {
     direction = e.target.value;
+    applyTaxiDirection();
     cy.layout(layoutOptions()).run();
+  });
+
+  // Curve style toggle.
+  document.getElementById('curve').addEventListener('change', (e) => {
+    applyCurveStyle(e.target.value);
   });
 
   document.getElementById('fit').addEventListener('click', () => cy.fit(undefined, 30));
   document.getElementById('relayout').addEventListener('click', () => cy.layout(layoutOptions()).run());
+
+  // Initial taxi-direction alignment for the starting rankDir.
+  applyTaxiDirection();
 
   // Re-fit on viewport resize.
   let resizeTimer;
