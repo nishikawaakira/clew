@@ -123,7 +123,10 @@ clew import \
 
 - `--input` は `.json` / `.json.gz` のいずれも可 (内容を見て自動判定)
 - `--db` が存在しなければ新規作成、存在すれば追記
-- 同一 `node_id` / `edge_id` は冪等に UPSERT/DO NOTHING されるので、複数回 import しても重複は発生しません
+- **冪等性**:同じ snapshot を同じ DB に再 import しても重複行は発生しません
+  - `config_items.item_id` は `account_id:aws_region:resource_type:resource_id:captureTime` 形式の PRIMARY KEY で、INSERT は `ON CONFLICT (item_id) DO NOTHING`。**同一 snapshot の二度目の import は no-op** です
+  - 一方、**異なる時刻に取得した snapshot** を同じ DB に import すると、同じリソースが別 `item_id` の行として保存されるため履歴を辿れます
+  - `graph_nodes` / `graph_edges` は常に最新状態を表します(real ノードは UPSERT、placeholder / edge は DO NOTHING)
 
 ### render — 構成図を出力する
 
@@ -206,6 +209,7 @@ DuckDB に作成されるテーブル:
 
 `node_id` の形式: `account_id:aws_region:resource_type:resource_id`
 `edge_id`: `SHA256(source_node_id | relationship_name | target_node_id)`
+`config_items.item_id` の形式: `account_id:aws_region:resource_type:resource_id:captureTime`(RFC3339Nano, UTC)。`PRIMARY KEY` 制約と `ON CONFLICT DO NOTHING` により、同 snapshot の再 import は no-op になりつつ、異なる時刻の snapshot は別行として共存します。
 
 `graph_nodes.properties_json` に `{"placeholder": true}` が入っているノードは、リレーションシップから参照されているがまだ実体としては取り込まれていないリソースを示します。
 

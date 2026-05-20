@@ -49,6 +49,12 @@ func newQueryCmd() *cobra.Command {
 }
 
 func runQuery(cmd *cobra.Command, dbPath, resourceID string, depth int, format, outputPath, layout string, withEdgeLabels bool) error {
+	// Pre-validate so a bogus --format never truncates an existing --output file
+	// via openOutput's os.Create.
+	if err := validateOutputPreconditions(format, outputPath, true); err != nil {
+		return err
+	}
+
 	st, err := store.Open(dbPath)
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)

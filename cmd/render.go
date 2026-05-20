@@ -52,6 +52,13 @@ func newRenderCmd() *cobra.Command {
 }
 
 func runRender(cmd *cobra.Command, dbPath, format, outputPath, layout string, withEdgeLabels bool) error {
+	// Validate up front so an invalid --format / --output combination never
+	// reaches os.Create — otherwise we'd truncate an existing output file
+	// before discovering that the format is unsupported.
+	if err := validateOutputPreconditions(format, outputPath, false); err != nil {
+		return err
+	}
+
 	st, err := store.Open(dbPath)
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
@@ -75,6 +82,32 @@ func runRender(cmd *cobra.Command, dbPath, format, outputPath, layout string, wi
 	defer closer()
 
 	return dispatchFormat(ctx, w, nodes, edges, format, layout, withEdgeLabels)
+}
+
+// validateOutputPreconditions checks the format / output combination *before*
+// any side-effecting work (specifically os.Create on --output). Without this
+// guard, a typo like `--format bogus --output existing.svg` would truncate
+// `existing.svg` to zero bytes before the format error surfaces.
+//
+// `allowText` lets the query subcommand opt into the extra "text" format.
+func validateOutputPreconditions(format, outputPath string, allowText bool) error {
+	switch format {
+	case "html", "mermaid", "dot", "svg", "png", "jpg":
+		// supported by both render and query
+	case "text":
+		if !allowText {
+			return fmt.Errorf("unsupported --format %q (text is only available for query)", format)
+		}
+	default:
+		if allowText {
+			return fmt.Errorf("unsupported --format %q (use one of: html, mermaid, dot, svg, png, jpg, text)", format)
+		}
+		return fmt.Errorf("unsupported --format %q (use one of: html, mermaid, dot, svg, png, jpg)", format)
+	}
+	if outputPath == "" && isBinaryFormat(format) {
+		return fmt.Errorf("binary format %q requires --output <file>", format)
+	}
+	return nil
 }
 
 // openOutput returns an io.Writer for the chosen output path. If outputPath is
