@@ -121,22 +121,31 @@ aws-config-graph import \
 - `--db` が存在しなければ新規作成、存在すれば追記
 - 同一 `node_id` / `edge_id` は冪等に UPSERT/DO NOTHING されるので、複数回 import しても重複は発生しません
 
-### render — Mermaid を出力する
+### render — 構成図を出力する
 
 ```sh
-aws-config-graph render \
-  --db config.duckdb \
-  --view vpc \
-  --format mermaid \
-  --output vpc.md
+# SVG (推奨。GitHub / ブラウザでそのまま表示可)
+aws-config-graph render --db config.duckdb --view vpc --format svg --output vpc.svg
+
+# PNG (Slack / Notion / スライドへの貼り付け向け)
+aws-config-graph render --db config.duckdb --view vpc --format png --output vpc.png
+
+# Mermaid (Markdown 内に埋め込む / mermaid.live で開く)
+aws-config-graph render --db config.duckdb --view vpc --format mermaid --output vpc.md
+
+# Graphviz DOT (他ツールで再加工したい場合)
+aws-config-graph render --db config.duckdb --view vpc --format dot --output vpc.dot
 ```
 
 - 現状サポートしている view は `vpc` のみ
-- 現状サポートしている format は `mermaid` のみ
-- `--output` を省略すると標準出力に書き出します
+- `--format` は `mermaid` / `dot` / `svg` / `png` / `jpg` (デフォルト: `mermaid`)
+- `--output` を省略すると標準出力。`png` / `jpg` はターミナルが化けないように `--output` 必須
 - `--with-edge-labels` を付けるとエッジに relationship 名が付きます
+- `--layout` で Graphviz レイアウトエンジン (`dot` / `neato` / `fdp` / `circo` / `twopi`) を切替可能。デフォルトは階層レイアウトの `dot`
 
-出力例:
+画像系 (`svg` / `png` / `jpg` / `dot`) は `goccy/go-graphviz` 経由の WASM 同梱 Graphviz でレンダリングします。**外部の `graphviz` インストールは不要** です。
+
+Mermaid 出力例:
 
 ````markdown
 ```mermaid
@@ -155,12 +164,15 @@ graph TD
 aws-config-graph query \
   --db config.duckdb \
   --resource-id vpc-aaa \
-  --depth 2
+  --depth 2 \
+  --format svg \
+  --output vpc-neighborhood.svg
 ```
 
 - `--depth 0` は seed のみ
-- `--format mermaid` (デフォルト) / `--format text` を切替可
-- mermaid 出力時は `--with-edge-labels` がデフォルト on
+- `--format` は `mermaid` / `dot` / `svg` / `png` / `jpg` / `text` を切替可 (デフォルト: `mermaid`)
+- Mermaid/Graphviz 出力時は `--with-edge-labels` がデフォルト on (relationship 名がエッジに付く)
+- `text` は端末向けのプレーンテキストサマリです
 
 ---
 
@@ -193,7 +205,8 @@ VPC ビューで参照する resource type:
 
 ## 制限事項 (PoC スコープ)
 
-- `view` は `vpc` のみ、`format` は `mermaid` のみ
+- `view` は `vpc` のみ
+- `format` は `mermaid` / `dot` / `svg` / `png` / `jpg` / (query のみ) `text`
 - configuration からのエッジ抽出は仕様書に列挙された範囲のみ (SG ルール内 SG 参照、Lambda VPC config 等)
 - アカウント / リージョンを跨ぐエッジは relationship に明示されていないため作成されません
 - 大規模 snapshot 向けの並列化や appender API は未対応 (動作はしますが速度は素朴な prepared statement 経由です)

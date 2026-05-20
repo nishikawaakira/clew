@@ -9,6 +9,22 @@
 *.duckdb.wal
 *.duckdb.tmp
 
+# Snapshot files downloaded from S3 (may contain account-specific data)
+/snapshot*.json
+/snapshot*.json.gz
+
+# Rendered diagrams produced by `aws-config-graph render` / `query`
+/vpc.md
+/vpc.dot
+/vpc.svg
+/vpc.png
+/vpc.jpg
+/vpc-*.md
+/vpc-*.dot
+/vpc-*.svg
+/vpc-*.png
+/vpc-*.jpg
+
 # Editor / OS
 .DS_Store
 .idea/

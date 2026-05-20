@@ -3,24 +3,23 @@ package cmd
 import (
 	"fmt"
 	"io"
-	"os"
 	"sort"
 
 	"github.com/spf13/cobra"
 
 	"aws-config-graph/internal/model"
 	"aws-config-graph/internal/query"
-	"aws-config-graph/internal/render"
 	"aws-config-graph/internal/store"
 )
 
 func newQueryCmd() *cobra.Command {
 	var (
-		db         string
-		resourceID string
-		depth      int
-		output     string
-		format     string
+		db             string
+		resourceID     string
+		depth          int
+		output         string
+		format         string
+		layout         string
 		withEdgeLabels bool
 	)
 	cmd := &cobra.Command{
@@ -36,19 +35,20 @@ func newQueryCmd() *cobra.Command {
 			if depth < 0 {
 				return fmt.Errorf("--depth must be >= 0")
 			}
-			return runQuery(cmd, db, resourceID, depth, format, output, withEdgeLabels)
+			return runQuery(cmd, db, resourceID, depth, format, output, layout, withEdgeLabels)
 		},
 	}
 	cmd.Flags().StringVar(&db, "db", "", "Path to DuckDB database file")
 	cmd.Flags().StringVar(&resourceID, "resource-id", "", "Resource id to start traversal from (e.g. vpc-xxxx)")
 	cmd.Flags().IntVar(&depth, "depth", 1, "Traversal depth (0 = seed only)")
 	cmd.Flags().StringVar(&output, "output", "", "Output file path (defaults to stdout)")
-	cmd.Flags().StringVar(&format, "format", "mermaid", "Output format: 'mermaid' or 'text'")
-	cmd.Flags().BoolVar(&withEdgeLabels, "with-edge-labels", true, "Annotate edges with their relationship name (mermaid only)")
+	cmd.Flags().StringVar(&format, "format", "mermaid", "Output format: mermaid|dot|svg|png|jpg|text")
+	cmd.Flags().StringVar(&layout, "layout", "dot", "Graphviz layout engine (ignored for mermaid/text)")
+	cmd.Flags().BoolVar(&withEdgeLabels, "with-edge-labels", true, "Annotate edges with their relationship name (mermaid/graphviz only)")
 	return cmd
 }
 
-func runQuery(cmd *cobra.Command, dbPath, resourceID string, depth int, format, outputPath string, withEdgeLabels bool) error {
+func runQuery(cmd *cobra.Command, dbPath, resourceID string, depth int, format, outputPath, layout string, withEdgeLabels bool) error {
 	st, err := store.Open(dbPath)
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
@@ -65,26 +65,16 @@ func runQuery(cmd *cobra.Command, dbPath, resourceID string, depth int, format, 
 		return nil
 	}
 
-	var w io.Writer
-	if outputPath == "" {
-		w = cmd.OutOrStdout()
-	} else {
-		f, err := os.Create(outputPath)
-		if err != nil {
-			return fmt.Errorf("create %s: %w", outputPath, err)
-		}
-		defer f.Close()
-		w = f
+	w, closer, err := openOutput(cmd, outputPath, format)
+	if err != nil {
+		return err
 	}
+	defer closer()
 
-	switch format {
-	case "mermaid":
-		return render.Mermaid(w, nodes, edges, render.Options{WithEdgeLabels: withEdgeLabels})
-	case "text":
+	if format == "text" {
 		return renderText(w, nodes, edges)
-	default:
-		return fmt.Errorf("unsupported --format %q (use 'mermaid' or 'text')", format)
 	}
+	return dispatchFormat(ctx, w, nodes, edges, format, layout, withEdgeLabels)
 }
 
 func renderText(w io.Writer, nodes []model.Node, edges []model.Edge) error {
