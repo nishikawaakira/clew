@@ -2,6 +2,9 @@
 
 **English** | [日本語](README_ja.md)
 
+[![CI](https://github.com/nishikawaakira/clew/actions/workflows/ci.yml/badge.svg)](https://github.com/nishikawaakira/clew/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 > *A clew through your AWS Config labyrinth.*
 
 `clew` is a Go CLI that ingests AWS Config Configuration Snapshots into a local DuckDB and renders the resulting resource / relationship graph as:
@@ -242,3 +245,9 @@ Unrecognised resource types are still stored in `graph_nodes` but do not appear 
 - Configuration-derived edges cover only the resource types listed in the PoC spec (SG rule SG references, Lambda VPC config, etc.).
 - Cross-account / cross-region edges are not created unless explicitly listed in the source relationships.
 - No parallelism or appender-API optimisation for very large snapshots — works correctly but uses straightforward prepared-statement inserts.
+
+---
+
+## License
+
+[MIT](LICENSE) © 2026 nishikawaakira

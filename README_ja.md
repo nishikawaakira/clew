@@ -2,6 +2,9 @@
 
 [English](README.md) | **日本語**
 
+[![CI](https://github.com/nishikawaakira/clew/actions/workflows/ci.yml/badge.svg)](https://github.com/nishikawaakira/clew/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 > *A clew through your AWS Config labyrinth.*
 
 `clew` は AWS Config の Configuration Snapshot を読み込んで、リソースをノード・リソース間の関係をエッジとしてローカルの DuckDB に保存し、最終的にインタラクティブな HTML(Cytoscape.js + dagre、compound nodes で VPC > Subnet > インスタンスの入れ子構造を表現)/ Graphviz 画像 (SVG / PNG) / Mermaid テキストとして出力する Go 製 CLI です。最初は VPC ネットワーク構成の可視化に焦点を当てています。
@@ -235,3 +238,9 @@ VPC ビューで参照する resource type:
 - configuration からのエッジ抽出は仕様書に列挙された範囲のみ (SG ルール内 SG 参照、Lambda VPC config 等)
 - アカウント / リージョンを跨ぐエッジは relationship に明示されていないため作成されません
 - 大規模 snapshot 向けの並列化や appender API は未対応 (動作はしますが速度は素朴な prepared statement 経由です)
+
+---
+
+## ライセンス
+
+[MIT](LICENSE) © 2026 nishikawaakira
