@@ -19,11 +19,13 @@
 /vpc.svg
 /vpc.png
 /vpc.jpg
+/vpc.html
 /vpc-*.md
 /vpc-*.dot
 /vpc-*.svg
 /vpc-*.png
 /vpc-*.jpg
+/vpc-*.html
 
 # Editor / OS
 .DS_Store

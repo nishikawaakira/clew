@@ -26,9 +26,10 @@ func newRenderCmd() *cobra.Command {
 		Use:   "render",
 		Short: "Render the imported graph (Mermaid text or Graphviz image).",
 		Long: `Render the imported graph into one of:
+  html     - Interactive standalone HTML (vis-network, zoom/pan/drag). Recommended for exploration.
   mermaid  - Markdown-fenced Mermaid 'graph TD' text
   dot      - Graphviz DOT source
-  svg      - Vector image (recommended for documentation)
+  svg      - Vector image (good for documentation)
   png      - Raster image
   jpg      - Raster image`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -43,7 +44,7 @@ func newRenderCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&db, "db", "", "Path to DuckDB database file")
 	cmd.Flags().StringVar(&view, "view", "vpc", "Graph view to render (only 'vpc' is supported)")
-	cmd.Flags().StringVar(&format, "format", "mermaid", "Output format: mermaid|dot|svg|png|jpg")
+	cmd.Flags().StringVar(&format, "format", "html", "Output format: html|mermaid|dot|svg|png|jpg")
 	cmd.Flags().StringVar(&output, "output", "", "Output file path (defaults to stdout)")
 	cmd.Flags().StringVar(&layout, "layout", "dot", "Graphviz layout engine (dot|neato|fdp|circo|twopi). Ignored for mermaid")
 	cmd.Flags().BoolVar(&withEdgeLabels, "with-edge-labels", false, "Annotate edges with their relationship name")
@@ -106,6 +107,8 @@ func isBinaryFormat(format string) bool {
 // stay in sync.
 func dispatchFormat(ctx context.Context, w io.Writer, nodes []model.Node, edges []model.Edge, format, layout string, withEdgeLabels bool) error {
 	switch format {
+	case "html":
+		return render.HTML(w, nodes, edges, render.HTMLOptions{WithEdgeLabels: withEdgeLabels})
 	case "mermaid":
 		return render.Mermaid(w, nodes, edges, render.Options{WithEdgeLabels: withEdgeLabels})
 	case "dot":
@@ -117,6 +120,6 @@ func dispatchFormat(ctx context.Context, w io.Writer, nodes []model.Node, edges 
 	case "jpg":
 		return render.Graphviz(ctx, w, nodes, edges, render.GraphvizOptions{Format: render.GraphvizJPG, Layout: layout, WithEdgeLabels: withEdgeLabels})
 	default:
-		return fmt.Errorf("unsupported --format %q (use one of: mermaid, dot, svg, png, jpg)", format)
+		return fmt.Errorf("unsupported --format %q (use one of: html, mermaid, dot, svg, png, jpg)", format)
 	}
 }

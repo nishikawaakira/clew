@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{.Title}}</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; color: #222; }
+  #graph { width: 100vw; height: 100vh; background: #fafafa; }
+
+  .panel {
+    position: fixed;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    z-index: 10;
+  }
+  #legend { top: 12px; left: 12px; max-width: 260px; }
+  #toolbar { top: 12px; right: 12px; }
+  #details { bottom: 12px; left: 12px; max-width: 360px; max-height: 40vh; overflow: auto; display: none; }
+  #details pre { white-space: pre-wrap; word-break: break-all; margin: 6px 0 0; font-size: 11px; background: #f5f5f5; padding: 6px 8px; border-radius: 4px; }
+
+  .legend-title, .toolbar-title { font-weight: 600; margin-bottom: 6px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.2); flex-shrink: 0; }
+  .legend-placeholder { background: repeating-linear-gradient(45deg, #f5f5f5, #f5f5f5 4px, #ddd 4px, #ddd 5px); }
+  .muted { color: #666; }
+  .toolbar-row { margin: 4px 0; }
+  .toolbar-row label { cursor: pointer; user-select: none; }
+  button.mini { font-size: 11px; padding: 2px 6px; border: 1px solid #bbb; background: white; border-radius: 4px; cursor: pointer; }
+  button.mini:hover { background: #f0f0f0; }
+</style>
+</head>
+<body>
+<div id="graph"></div>
+
+<div id="legend" class="panel">
+  <div class="legend-title">Resource types</div>
+  <div id="legend-items"></div>
+  <div class="legend-item" style="margin-top:8px;"><span class="legend-swatch legend-placeholder"></span>placeholder<br><span class="muted">(関係先だけ判明)</span></div>
+</div>
+
+<div id="toolbar" class="panel">
+  <div class="toolbar-title">View</div>
+  <div class="toolbar-row"><label><input type="checkbox" id="hierarchical" checked> Hierarchical layout</label></div>
+  <div class="toolbar-row"><label><input type="checkbox" id="edgeLabels"> Show edge labels</label></div>
+  <div class="toolbar-row"><button class="mini" id="fit">Fit to screen</button></div>
+</div>
+
+<div id="details" class="panel">
+  <div class="legend-title">Resource</div>
+  <div id="details-body"></div>
+</div>
+
+<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+<script>
+const DATA = {{.DataJSON}};
+const SHOW_EDGE_LABELS_DEFAULT = {{.WithEdgeLabels}};
+
+(function () {
+  const nodes = new vis.DataSet(DATA.nodes);
+  const edges = new vis.DataSet(DATA.edges.map(e => ({...e, label: SHOW_EDGE_LABELS_DEFAULT ? e.label : ''})));
+  const container = document.getElementById('graph');
+
+  const baseOptions = {
+    nodes: {
+      borderWidth: 1,
+      font: { size: 12, multi: false, face: 'Helvetica' },
+      margin: 8,
+      shadow: false,
+    },
+    edges: {
+      arrows: { to: { enabled: true, scaleFactor: 0.6 } },
+      smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.35 },
+      color: { color: '#888', highlight: '#222' },
+      font: { size: 10, color: '#444', background: 'rgba(255,255,255,0.85)', strokeWidth: 0, align: 'middle' },
+    },
+    layout: {
+      hierarchical: {
+        enabled: true,
+        direction: 'UD',
+        sortMethod: 'directed',
+        nodeSpacing: 160,
+        levelSeparation: 120,
+        treeSpacing: 220,
+      },
+    },
+    physics: { enabled: false },
+    interaction: { hover: true, navigationButtons: true, keyboard: true, tooltipDelay: 120 },
+  };
+
+  const network = new vis.Network(container, { nodes, edges }, baseOptions);
+
+  // Legend — derive from the resource types actually present.
+  const seen = new Map();
+  DATA.nodes.forEach(n => {
+    if (!seen.has(n.resourceType)) {
+      seen.set(n.resourceType, n.color && n.color.background ? n.color.background : '#eee');
+    }
+  });
+  const legendEl = document.getElementById('legend-items');
+  Array.from(seen.entries()).sort().forEach(([type, color]) => {
+    const row = document.createElement('div');
+    row.className = 'legend-item';
+    row.innerHTML = `<span class="legend-swatch" style="background:${color}"></span>${type}`;
+    legendEl.appendChild(row);
+  });
+
+  // Toolbar wiring.
+  document.getElementById('hierarchical').addEventListener('change', (e) => {
+    network.setOptions({
+      layout: { hierarchical: { enabled: e.target.checked, direction: 'UD', sortMethod: 'directed' } },
+      physics: { enabled: !e.target.checked },
+    });
+  });
+
+  document.getElementById('edgeLabels').checked = SHOW_EDGE_LABELS_DEFAULT;
+  document.getElementById('edgeLabels').addEventListener('change', (e) => {
+    edges.update(DATA.edges.map(orig => ({ id: orig.id, label: e.target.checked ? orig.label : '' })));
+  });
+
+  document.getElementById('fit').addEventListener('click', () => network.fit({ animation: { duration: 250 } }));
+
+  // Click → show details panel.
+  const detailsEl = document.getElementById('details');
+  const detailsBody = document.getElementById('details-body');
+  network.on('selectNode', (params) => {
+    const nodeId = params.nodes[0];
+    const n = nodes.get(nodeId);
+    if (!n) return;
+    detailsEl.style.display = 'block';
+    const meta = [
+      ['type', n.resourceType],
+      ['resource id', n.resourceId],
+      ['account', n.accountId],
+      ['region', n.awsRegion],
+      ['arn', n.arn || '(none)'],
+      ['placeholder', n.placeholder ? 'yes' : 'no'],
+    ];
+    detailsBody.innerHTML = meta.map(([k, v]) => `<div><strong>${k}:</strong> ${String(v).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</div>`).join('');
+  });
+  network.on('deselectNode', () => { detailsEl.style.display = 'none'; });
+})();
+</script>
+</body>
+</html>

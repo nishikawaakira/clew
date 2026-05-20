@@ -124,10 +124,14 @@ aws-config-graph import \
 ### render — 構成図を出力する
 
 ```sh
-# SVG (推奨。GitHub / ブラウザでそのまま表示可)
+# インタラクティブ HTML (推奨。ズーム / パン / ノードクリックで詳細表示)
+aws-config-graph render --db config.duckdb --view vpc --format html --output vpc.html
+open vpc.html   # ブラウザで開く
+
+# 静的 SVG (GitHub / Markdown の図として添付したい場合)
 aws-config-graph render --db config.duckdb --view vpc --format svg --output vpc.svg
 
-# PNG (Slack / Notion / スライドへの貼り付け向け)
+# PNG (Slack / Notion / スライド貼り付け向け)
 aws-config-graph render --db config.duckdb --view vpc --format png --output vpc.png
 
 # Mermaid (Markdown 内に埋め込む / mermaid.live で開く)
@@ -138,12 +142,22 @@ aws-config-graph render --db config.duckdb --view vpc --format dot --output vpc.
 ```
 
 - 現状サポートしている view は `vpc` のみ
-- `--format` は `mermaid` / `dot` / `svg` / `png` / `jpg` (デフォルト: `mermaid`)
+- `--format` は `html` / `mermaid` / `dot` / `svg` / `png` / `jpg` (デフォルト: `html`)
 - `--output` を省略すると標準出力。`png` / `jpg` はターミナルが化けないように `--output` 必須
-- `--with-edge-labels` を付けるとエッジに relationship 名が付きます
-- `--layout` で Graphviz レイアウトエンジン (`dot` / `neato` / `fdp` / `circo` / `twopi`) を切替可能。デフォルトは階層レイアウトの `dot`
+- `--with-edge-labels` を付けるとエッジに relationship 名が付きます (HTML は UI トグルでも切替可)
+- `--layout` で Graphviz レイアウトエンジン (`dot` / `neato` / `fdp` / `circo` / `twopi`) を切替可能。HTML/Mermaid では無視されます
 
-画像系 (`svg` / `png` / `jpg` / `dot`) は `goccy/go-graphviz` 経由の WASM 同梱 Graphviz でレンダリングします。**外部の `graphviz` インストールは不要** です。
+**形式の選び方**
+
+| 形式 | 推奨用途 | 特徴 |
+|---|---|---|
+| `html` | 自分でグラフを眺めて理解したい | ズーム / パン / ノードクリックで詳細表示 / 階層 ↔ 物理レイアウト切替。`vis-network` を CDN ロードするのでブラウザ閲覧にネット接続が必要 |
+| `svg` | ドキュメントに静的に貼りたい | ベクター。GitHub / ブラウザで開ける |
+| `png` / `jpg` | Slack / Notion / スライド | ラスタ。サイズ固定 |
+| `mermaid` | Markdown 内に直接埋め込みたい | GitHub README などはそのまま図として描画 |
+| `dot` | Graphviz の別ツール (gephi 等) で再加工 | テキスト |
+
+画像系 (`svg` / `png` / `jpg` / `dot`) は `goccy/go-graphviz` 経由の WASM 同梱 Graphviz でレンダリングします。**外部の `graphviz` インストールは不要** です。HTML は単一ファイルで完結し、`<script src="https://unpkg.com/vis-network/...">` で vis-network を読み込みます (オフラインで開きたい場合は将来オプションを追加予定)。
 
 Mermaid 出力例:
 
@@ -165,13 +179,13 @@ aws-config-graph query \
   --db config.duckdb \
   --resource-id vpc-aaa \
   --depth 2 \
-  --format svg \
-  --output vpc-neighborhood.svg
+  --format html \
+  --output vpc-neighborhood.html
 ```
 
 - `--depth 0` は seed のみ
-- `--format` は `mermaid` / `dot` / `svg` / `png` / `jpg` / `text` を切替可 (デフォルト: `mermaid`)
-- Mermaid/Graphviz 出力時は `--with-edge-labels` がデフォルト on (relationship 名がエッジに付く)
+- `--format` は `html` / `mermaid` / `dot` / `svg` / `png` / `jpg` / `text` を切替可 (デフォルト: `html`)
+- `--with-edge-labels` は HTML / Mermaid / Graphviz でデフォルト on
 - `text` は端末向けのプレーンテキストサマリです
 
 ---
@@ -206,7 +220,8 @@ VPC ビューで参照する resource type:
 ## 制限事項 (PoC スコープ)
 
 - `view` は `vpc` のみ
-- `format` は `mermaid` / `dot` / `svg` / `png` / `jpg` / (query のみ) `text`
+- `format` は `html` / `mermaid` / `dot` / `svg` / `png` / `jpg` / (query のみ) `text`
+- HTML 出力は vis-network を CDN から読み込むので、HTML ファイル自体は単一で完結するがブラウザでの閲覧時にネット接続が必要
 - configuration からのエッジ抽出は仕様書に列挙された範囲のみ (SG ルール内 SG 参照、Lambda VPC config 等)
 - アカウント / リージョンを跨ぐエッジは relationship に明示されていないため作成されません
 - 大規模 snapshot 向けの並列化や appender API は未対応 (動作はしますが速度は素朴な prepared statement 経由です)

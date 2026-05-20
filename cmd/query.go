@@ -42,7 +42,7 @@ func newQueryCmd() *cobra.Command {
 	cmd.Flags().StringVar(&resourceID, "resource-id", "", "Resource id to start traversal from (e.g. vpc-xxxx)")
 	cmd.Flags().IntVar(&depth, "depth", 1, "Traversal depth (0 = seed only)")
 	cmd.Flags().StringVar(&output, "output", "", "Output file path (defaults to stdout)")
-	cmd.Flags().StringVar(&format, "format", "mermaid", "Output format: mermaid|dot|svg|png|jpg|text")
+	cmd.Flags().StringVar(&format, "format", "html", "Output format: html|mermaid|dot|svg|png|jpg|text")
 	cmd.Flags().StringVar(&layout, "layout", "dot", "Graphviz layout engine (ignored for mermaid/text)")
 	cmd.Flags().BoolVar(&withEdgeLabels, "with-edge-labels", true, "Annotate edges with their relationship name (mermaid/graphviz only)")
 	return cmd
