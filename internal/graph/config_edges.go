@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"aws-config-graph/internal/model"
+	"clew/internal/model"
 )
 
 // ConfigEdge is an edge candidate inferred from a configurationItem.configuration body.

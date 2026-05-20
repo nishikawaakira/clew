@@ -8,9 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"aws-config-graph/internal/model"
-	"aws-config-graph/internal/render"
-	"aws-config-graph/internal/store"
+	"clew/internal/model"
+	"clew/internal/render"
+	"clew/internal/store"
 )
 
 func newRenderCmd() *cobra.Command {

@@ -1,4 +1,4 @@
-module aws-config-graph
+module clew
 
 go 1.26.1
 

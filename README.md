@@ -1,6 +1,10 @@
-# aws-config-graph
+# clew
 
-AWS Config の Configuration Snapshot を読み込み、リソースをノード／関係をエッジとして DuckDB に保存し、Mermaid 形式で構成図を出力する PoC CLI です。最初は VPC ネットワーク構成の可視化に焦点を当てています。
+> *A clew through your AWS Config labyrinth.*
+
+`clew` は AWS Config の Configuration Snapshot を読み込んで、リソースをノード・リソース間の関係をエッジとしてローカルの DuckDB に保存し、最終的にインタラクティブな HTML(Cytoscape.js + dagre、compound nodes で VPC > Subnet > インスタンスの入れ子構造を表現)/ Graphviz 画像 (SVG / PNG) / Mermaid テキストとして出力する Go 製 CLI です。最初は VPC ネットワーク構成の可視化に焦点を当てています。
+
+ツール名 *clew* は古英語で「糸玉」を意味する語で、現代英語 *clue*(手がかり)の語源でもあります。ギリシャ神話でアリアドネがテセウスに渡し、迷宮を抜けるための糸 — つまり **散らばった構成情報の中から手がかりを辿るための糸**、というのが命名の由来です。
 
 ---
 
@@ -14,9 +18,9 @@ AWS Config の Configuration Snapshot を読み込み、リソースをノード
 ## ビルド
 
 ```sh
-git clone <this repo>
-cd aws-config-graph
-go build -o aws-config-graph .
+git clone https://github.com/nishikawaakira/clew.git
+cd clew
+go build -o clew .
 ```
 
 ローカル実行のみで配布バイナリを作らない場合は `go run . <subcommand>` でも構いません。
@@ -103,7 +107,7 @@ jq '.configurationItems | length' snapshot.json
 jq '.configurationItems[0]' snapshot.json
 ```
 
-`aws-config-graph import` は `.json` と `.json.gz` のいずれも受け付けるので展開する必要はありません。
+`clew import` は `.json` と `.json.gz` のいずれも受け付けるので展開する必要はありません。
 
 ---
 
@@ -112,7 +116,7 @@ jq '.configurationItems[0]' snapshot.json
 ### import — DuckDB に取り込む
 
 ```sh
-aws-config-graph import \
+clew import \
   --input snapshot.json.gz \
   --db config.duckdb
 ```
@@ -125,20 +129,20 @@ aws-config-graph import \
 
 ```sh
 # インタラクティブ HTML (推奨。ズーム / パン / ノードクリックで詳細表示)
-aws-config-graph render --db config.duckdb --view vpc --format html --output vpc.html
+clew render --db config.duckdb --view vpc --format html --output vpc.html
 open vpc.html   # ブラウザで開く
 
 # 静的 SVG (GitHub / Markdown の図として添付したい場合)
-aws-config-graph render --db config.duckdb --view vpc --format svg --output vpc.svg
+clew render --db config.duckdb --view vpc --format svg --output vpc.svg
 
 # PNG (Slack / Notion / スライド貼り付け向け)
-aws-config-graph render --db config.duckdb --view vpc --format png --output vpc.png
+clew render --db config.duckdb --view vpc --format png --output vpc.png
 
 # Mermaid (Markdown 内に埋め込む / mermaid.live で開く)
-aws-config-graph render --db config.duckdb --view vpc --format mermaid --output vpc.md
+clew render --db config.duckdb --view vpc --format mermaid --output vpc.md
 
 # Graphviz DOT (他ツールで再加工したい場合)
-aws-config-graph render --db config.duckdb --view vpc --format dot --output vpc.dot
+clew render --db config.duckdb --view vpc --format dot --output vpc.dot
 ```
 
 - 現状サポートしている view は `vpc` のみ
@@ -175,7 +179,7 @@ graph TD
 ### query — 特定リソースの周辺を確認する
 
 ```sh
-aws-config-graph query \
+clew query \
   --db config.duckdb \
   --resource-id vpc-aaa \
   --depth 2 \

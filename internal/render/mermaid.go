@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"aws-config-graph/internal/model"
+	"clew/internal/model"
 )
 
 // VpcViewTypes lists the resource types that participate in the VPC view.

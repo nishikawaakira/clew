@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"aws-config-graph/internal/graph"
-	"aws-config-graph/internal/model"
-	"aws-config-graph/internal/snapshot"
-	"aws-config-graph/internal/store"
+	"clew/internal/graph"
+	"clew/internal/model"
+	"clew/internal/snapshot"
+	"clew/internal/store"
 )
 
 // TestImportAndQuery exercises Open → BeginWriter → WriteConfigItem/WriteNode/WriteEdge

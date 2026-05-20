@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"aws-config-graph/internal/model"
+	"clew/internal/model"
 )
 
 func makeItem(t *testing.T, resourceType, resourceID string, cfg map[string]any, rels []model.Relationship) model.ConfigItem {

@@ -9,7 +9,7 @@ import (
 	"github.com/goccy/go-graphviz"
 	"github.com/goccy/go-graphviz/cgraph"
 
-	"aws-config-graph/internal/model"
+	"clew/internal/model"
 )
 
 // GraphvizFormat enumerates the output formats the bundled WASM Graphviz can

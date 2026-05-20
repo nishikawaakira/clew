@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"aws-config-graph/internal/model"
+	"clew/internal/model"
 )
 
 func sampleGraph() ([]model.Node, []model.Edge) {

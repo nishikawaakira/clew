@@ -9,7 +9,7 @@ import (
 
 	_ "github.com/marcboeker/go-duckdb"
 
-	"aws-config-graph/internal/model"
+	"clew/internal/model"
 )
 
 // Store is a DuckDB-backed persistence layer for config_items, graph_nodes,

@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"aws-config-graph/internal/model"
-	"aws-config-graph/internal/query"
-	"aws-config-graph/internal/store"
+	"clew/internal/model"
+	"clew/internal/query"
+	"clew/internal/store"
 )
 
 func newQueryCmd() *cobra.Command {

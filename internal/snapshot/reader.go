@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"aws-config-graph/internal/model"
+	"clew/internal/model"
 )
 
 // Open opens a snapshot file, transparently handling .gz files via the

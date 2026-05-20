@@ -3,8 +3,8 @@ package query
 import (
 	"context"
 
-	"aws-config-graph/internal/model"
-	"aws-config-graph/internal/store"
+	"clew/internal/model"
+	"clew/internal/store"
 )
 
 // BFS walks the graph outward from every node whose resource_id matches

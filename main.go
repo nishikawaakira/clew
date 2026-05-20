@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"aws-config-graph/cmd"
+	"clew/cmd"
 )
 
 func main() {

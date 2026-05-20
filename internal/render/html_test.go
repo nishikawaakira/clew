@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"aws-config-graph/internal/model"
+	"clew/internal/model"
 )
 
 func TestHTMLContainsCytoscapeScaffolding(t *testing.T) {

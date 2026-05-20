@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"aws-config-graph/internal/model"
+	"clew/internal/model"
 )
 
 //go:embed html_template.html
@@ -32,7 +32,7 @@ type HTMLOptions struct {
 // cytoscape-dagre extension from a CDN at view time.
 func HTML(w io.Writer, nodes []model.Node, edges []model.Edge, opts HTMLOptions) error {
 	if opts.Title == "" {
-		opts.Title = "aws-config-graph — VPC view"
+		opts.Title = "clew — VPC view"
 	}
 
 	tmpl, err := template.New("page").Parse(htmlTemplateSrc)

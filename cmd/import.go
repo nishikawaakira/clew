@@ -5,10 +5,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"aws-config-graph/internal/graph"
-	"aws-config-graph/internal/model"
-	"aws-config-graph/internal/snapshot"
-	"aws-config-graph/internal/store"
+	"clew/internal/graph"
+	"clew/internal/model"
+	"clew/internal/snapshot"
+	"clew/internal/store"
 )
 
 func newImportCmd() *cobra.Command {

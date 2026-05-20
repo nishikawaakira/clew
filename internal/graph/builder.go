@@ -3,7 +3,7 @@ package graph
 import (
 	"encoding/json"
 
-	"aws-config-graph/internal/model"
+	"clew/internal/model"
 )
 
 // Built is the result of converting a single ConfigItem into graph artifacts.
