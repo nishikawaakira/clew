@@ -12,6 +12,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Restrict the default GITHUB_TOKEN to the minimum this workflow needs —
+# just reading the repository contents to check out source. No writes,
+# no issue/PR comments, no package publishing.
+permissions:
+  contents: read
+
 jobs:
   test:
     name: build + test (${{ matrix.os }}, Go ${{ matrix.go }})
