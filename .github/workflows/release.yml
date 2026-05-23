@@ -11,36 +11,62 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: build (${{ matrix.target }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Apple Silicon Macs. macos-latest is arm64 as of macos-14.
-          - target: darwin-arm64
-            os: macos-latest
-            goos: darwin
-            goarch: arm64
-            ext: ""
-          # Intel Macs. macos-13 is the last Intel runner image GitHub provides.
-          - target: darwin-amd64
-            os: macos-13
-            goos: darwin
-            goarch: amd64
-            ext: ""
-          # Windows. windows-latest ships with mingw-w64 gcc on PATH, which
-          # go-duckdb's CGO build requires.
-          - target: windows-amd64
-            os: windows-latest
-            goos: windows
-            goarch: amd64
-            ext: ".exe"
-
+  build-darwin:
+    name: build (darwin-universal)
+    runs-on: macos-latest
     env:
       CGO_ENABLED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
 
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+          cache: true
+
+      - name: Build arm64 (native)
+        env:
+          GOOS: darwin
+          GOARCH: arm64
+        run: |
+          mkdir -p build
+          go build -trimpath -ldflags "-s -w" -o build/clew-arm64 .
+
+      # Cross-compile amd64 from the arm64 runner using clang's -arch flag.
+      # macOS Xcode ships SDKs for both architectures, and go-duckdb bundles
+      # pre-built static libraries for darwin_amd64, so this works without
+      # an Intel runner (macos-13 is essentially unavailable due to capacity).
+      - name: Build amd64 (cross-compile via -arch x86_64)
+        env:
+          GOOS: darwin
+          GOARCH: amd64
+          CC: "clang -arch x86_64"
+          CXX: "clang++ -arch x86_64"
+        run: |
+          go build -trimpath -ldflags "-s -w" -o build/clew-amd64 .
+
+      - name: Combine into universal binary with lipo
+        run: |
+          mkdir -p dist
+          out="dist/clew-${{ github.ref_name }}-darwin-universal"
+          lipo -create build/clew-arm64 build/clew-amd64 -output "$out"
+          lipo -info "$out"
+          file "$out"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clew-darwin-universal
+          path: dist/*
+          if-no-files-found: error
+
+  build-windows:
+    name: build (windows-amd64)
+    runs-on: windows-latest
+    env:
+      CGO_ENABLED: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -54,24 +80,24 @@ jobs:
       - name: Build
         shell: bash
         env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
+          GOOS: windows
+          GOARCH: amd64
         run: |
           mkdir -p dist
-          out="dist/clew-${{ github.ref_name }}-${{ matrix.target }}${{ matrix.ext }}"
+          out="dist/clew-${{ github.ref_name }}-windows-amd64.exe"
           go build -trimpath -ldflags "-s -w" -o "$out" .
           ls -la dist
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: clew-${{ matrix.target }}
+          name: clew-windows-amd64
           path: dist/*
           if-no-files-found: error
 
   release:
     name: release
-    needs: build
+    needs: [build-darwin, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
