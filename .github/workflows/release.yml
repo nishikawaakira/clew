@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# The release job needs to create a GitHub Release and upload assets.
+# Build jobs read source only.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Apple Silicon Macs. macos-latest is arm64 as of macos-14.
+          - target: darwin-arm64
+            os: macos-latest
+            goos: darwin
+            goarch: arm64
+            ext: ""
+          # Intel Macs. macos-13 is the last Intel runner image GitHub provides.
+          - target: darwin-amd64
+            os: macos-13
+            goos: darwin
+            goarch: amd64
+            ext: ""
+          # Windows. windows-latest ships with mingw-w64 gcc on PATH, which
+          # go-duckdb's CGO build requires.
+          - target: windows-amd64
+            os: windows-latest
+            goos: windows
+            goarch: amd64
+            ext: ".exe"
+
+    env:
+      CGO_ENABLED: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+          cache: true
+
+      - name: Build
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p dist
+          out="dist/clew-${{ github.ref_name }}-${{ matrix.target }}${{ matrix.ext }}"
+          go build -trimpath -ldflags "-s -w" -o "$out" .
+          ls -la dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clew-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
