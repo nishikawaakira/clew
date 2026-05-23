@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+# Opt into Node.js 24 for JavaScript-based actions ahead of GitHub's
+# 2026-06-02 forced switch, silencing the Node.js 20 deprecation warnings.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   build-darwin:
     name: build (darwin-universal)
