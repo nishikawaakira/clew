@@ -37,7 +37,7 @@ jobs:
         # feature creeping in is caught here rather than at install time.
         include:
           - os: ubuntu-latest
-            go: '1.24'
+            go: '1.25'
 
     env:
       CGO_ENABLED: "1"
